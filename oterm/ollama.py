@@ -18,37 +18,41 @@ class OllamaLLM:
         self.system = system
         self.context = context
         self.format = format
-        self.client = AsyncClient(
+
+    def __client(self) -> AsyncClient:
+        return AsyncClient(
             host=envConfig.OLLAMA_URL, verify=envConfig.OTERM_VERIFY_SSL, http2=True
         )
 
     async def completion(self, prompt: str, images: list[str] = []) -> str:
-        response: dict = await self.client.generate(
-            model=self.model,
-            prompt=prompt,
-            context=self.context,
-            system=self.system,  # type: ignore
-            format=self.format,  # type: ignore
-            images=images,
-        )
-        self.context = response.get("context", [])
-        return response.get("response", "")
+        async with self.__client() as client:
+            response: dict = await client.generate(
+                model=self.model,
+                prompt=prompt,
+                context=self.context,
+                system=self.system,  # type: ignore
+                format=self.format,  # type: ignore
+                images=images,
+            )
+            self.context = response.get("context", [])
+            return response.get("response", "")
 
     async def stream(
         self, prompt: str, images: list[str] = []
     ) -> AsyncGenerator[str, Any]:
-        stream: AsyncIterator[dict] = await self.client.generate(
-            model=self.model,
-            prompt=prompt,
-            context=self.context,
-            system=self.system,  # type: ignore
-            format=self.format,  # type: ignore
-            images=images,
-            stream=True,
-        )
-        text = ""
-        async for response in stream:
-            text = text + response.get("response", "")
-            if "context" in response:
-                self.context = response.get("context")
-            yield text
+        async with self.__client() as client:
+            stream: AsyncIterator[dict] = await client.generate(
+                model=self.model,
+                prompt=prompt,
+                context=self.context,
+                system=self.system,  # type: ignore
+                format=self.format,  # type: ignore
+                images=images,
+                stream=True,
+            )
+            text = ""
+            async for response in stream:
+                text = text + response.get("response", "")
+                if "context" in response:
+                    self.context = response.get("context")
+                yield text
