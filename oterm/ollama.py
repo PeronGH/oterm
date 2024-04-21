@@ -6,6 +6,7 @@ from oterm.config import envConfig
 
 
 class OllamaLLM:
+
     def __init__(
         self,
         model="nous-hermes:13b",
@@ -17,12 +18,12 @@ class OllamaLLM:
         self.system = system
         self.context = context
         self.format = format
+        self.client = AsyncClient(
+            host=envConfig.OLLAMA_URL, verify=envConfig.OTERM_VERIFY_SSL, http2=True
+        )
 
     async def completion(self, prompt: str, images: list[str] = []) -> str:
-        client = AsyncClient(
-            host=envConfig.OLLAMA_URL, verify=envConfig.OTERM_VERIFY_SSL
-        )
-        response: dict = await client.generate(
+        response: dict = await self.client.generate(
             model=self.model,
             prompt=prompt,
             context=self.context,
@@ -36,10 +37,7 @@ class OllamaLLM:
     async def stream(
         self, prompt: str, images: list[str] = []
     ) -> AsyncGenerator[str, Any]:
-        client = AsyncClient(
-            host=envConfig.OLLAMA_URL, verify=envConfig.OTERM_VERIFY_SSL
-        )
-        stream: AsyncIterator[dict] = await client.generate(
+        stream: AsyncIterator[dict] = await self.client.generate(
             model=self.model,
             prompt=prompt,
             context=self.context,
